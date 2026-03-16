@@ -1285,9 +1285,14 @@ function saveBulk() {
 //  EXAM SETUP
 // ═══════════════════════════════════════════
 function openExamSetup() {
-  const loadCls = FILT.sc === 'all' ? '초등A' : FILT.sc;
-  document.getElementById('std-book').value = STD[loadCls]?.book||'';
-  document.getElementById('std-wb').value = STD[loadCls]?.wb||'';
+  const loadCls = FILT.sc === 'all' ? null : FILT.sc;
+  document.getElementById('std-book').value = loadCls ? (STD[loadCls]?.book||'') : '';
+  document.getElementById('std-wb').value   = loadCls ? (STD[loadCls]?.wb||'')   : '';
+  // 모달 안내 문구 업데이트
+  const mSub = document.querySelector('#m-exam .m-sub');
+  if(mSub) mSub.textContent = loadCls
+    ? `[${loadCls}] 반 기준을 설정해요`
+    : '⚠️ 전체 보기 상태 — 저장 시 적용할 반을 직접 입력해주세요. 반 필터를 먼저 선택하면 더 편해요!';
   renderExamList();
   openModal('m-exam');
 }
@@ -1320,10 +1325,14 @@ function saveExamSetup() {
   const bVal = document.getElementById('std-book').value;
   const wVal = document.getElementById('std-wb').value;
   if(curCls){
+    if(!STD[curCls]) STD[curCls]={book:'',wb:''};
     STD[curCls].book = bVal; STD[curCls].wb = wVal;
   } else {
-    // 전체 모드면 모든 반에 동일 적용
-    Object.keys(STD).forEach(c => { if(bVal) STD[c].book=bVal; if(wVal) STD[c].wb=wVal; });
+    // 전체 모드일 때 — 반 이름 직접 선택
+    const clsName = prompt('어느 반 진도를 설정할까요?\n' + CLS.join(' / '), CLS[0]);
+    if(!clsName || !CLS.includes(clsName)) { alert('올바른 반 이름을 입력해주세요!'); return; }
+    if(!STD[clsName]) STD[clsName]={book:'',wb:''};
+    STD[clsName].book = bVal; STD[clsName].wb = wVal;
   }
   updateBanner(); renderScoreView();
   closeModal('m-exam'); saveAll();
@@ -1441,7 +1450,7 @@ function renderScoreView() {
     // ── 반별 진도 그리드 (선생님 입력) ──
     const pgrid = document.getElementById('cls-prog-grid');
     if(pgrid){
-      const visClasses = FILT.sc==='all' ? ['초등A','초등B','중등A','중등B','고등','개별반'] : [FILT.sc];
+      const visClasses = FILT.sc==='all' ? CLS : [FILT.sc];
       pgrid.innerHTML = visClasses.map(c => {
         const st = STD[c]||{book:'',wb:''};
         return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px">
