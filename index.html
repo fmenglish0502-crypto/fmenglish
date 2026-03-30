@@ -376,8 +376,16 @@ textarea.fi{resize:vertical}
         <div id="indiv-notice" style="padding:9px 14px;border-bottom:1px solid var(--border);background:var(--rl);font-size:12px;color:var(--red);display:none">
           ⚡ <b>개별반</b>은 본책/워크북 자동 진행 — 오답 + 태도 코멘트만 입력해도 바로 문자 발송 가능합니다
         </div>
+        <!-- 일괄 완료 체크 버튼 -->
+        <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg)">
+          <span style="font-size:12px;font-weight:700;color:var(--t2)">일괄 처리:</span>
+          <button class="btn bsm" style="background:var(--gl);color:var(--green);border:1px solid var(--green);font-weight:700" onclick="bulkCheck('done')">✅ 전체 완료</button>
+          <button class="btn bsm" style="background:#fefce8;color:#a16207;border:1px solid #fcd34d;font-weight:700" onclick="bulkCheck('nograde')">📝 전체 채점안됨</button>
+          <button class="btn bsm" style="background:#fee2e2;color:var(--red);border:1px solid var(--red);font-weight:700" onclick="bulkCheck('notdone')">❌ 전체 안풀었음</button>
+          <button class="btn bg bsm" onclick="bulkCheck('')">↺ 전체 초기화</button>
+        </div>
         <div style="overflow-x:auto"><table><thead><tr>
-          <th>이름</th><th>반</th><th>📖 본책 진도</th><th>📝 워크북 진도</th><th style="min-width:120px">✅ 진도 확인</th><th>오답 메모</th><th>태도 상태</th>
+          <th>이름</th><th>반</th><th>📖 본책 진도</th><th>📝 워크북 체크</th><th style="min-width:130px">📋 진도 확인</th><th>오답 메모</th><th>태도 상태</th>
         </tr></thead><tbody id="tbody-hw"></tbody></table></div>
       </div>
       <div id="sv-wrong" style="display:none"><div style="overflow-x:auto"><table><thead><tr>
@@ -1025,7 +1033,7 @@ function loadAll() {
 
 // SD/ATT/PAY 초기화 (기본값) — loadAllData에서 덮어씀
 let SD = {};
-S.forEach(s => { SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{},check:''}; });
+S.forEach(s => { SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{},check:'',wbCheck:''}; });
 
 let ATT = {};
 S.forEach(s => { ATT[s.no] = {week:['','','','',''],mon:0}; });
@@ -1267,7 +1275,7 @@ function addStudent() {
     st:document.getElementById('a-status').value, sd:startStr.replace(/-/g,'.')
   };
   S.push(s);
-  SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{},check:''};
+  SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{},check:'',wbCheck:''};
   PAY[s.no] = {status:'unpaid', date:'', due:dueStr};
   ATT[s.no] = {week:['','','','',''], mon:0};
   const b = 58+Math.random()*30;
@@ -1507,20 +1515,29 @@ function renderScoreView() {
 
     // ── 학생별 진도 입력 테이블 ──
     document.getElementById('tbody-hw').innerHTML = list.map(s => {
-      const d = SD[s.no]; if(!d.check) d.check='';
+      const d = SD[s.no]; if(!d.check) d.check=''; if(!d.wbCheck) d.wbCheck='';
       const clsStd = STD[s.cls]||{book:'',wb:''};
       const isIndiv = s.cls==='개별반';
       const wrongSummary = EXAMS.length&&d.wrong
         ? Object.values(d.wrong).map(w=>w.words).filter(Boolean).join(', ') : '';
       const hasComment = d.att_ta||d.att_teacher||d.att_director||d.att;
-      // 예상 진도: 직전 로그에서 가져오기
-      const lastLog = (d.logs||[]).filter(l=>l.book||l.wb).slice(-1)[0];
+      const lastLog = (d.logs||[]).filter(l=>l.book).slice(-1)[0];
       const bookPH = lastLog?.book ? `어제: ${lastLog.book}` : '학생 실제 진도…';
-      const wbPH   = lastLog?.wb   ? `어제: ${lastLog.wb}`   : '학생 실제 진도…';
-      // 체크 상태
+
+      // 진도 체크 (본책)
       const chkDone    = d.check==='done';
       const chkNoGrade = d.check==='nograde';
-      const rowBg = chkDone ? 'background:var(--gl)' : chkNoGrade ? 'background:#fefce8' : '';
+      const chkNotDone = d.check==='notdone';
+
+      // 워크북 체크
+      const wbDone    = d.wbCheck==='done';
+      const wbNoGrade = d.wbCheck==='nograde';
+      const wbNotDone = d.wbCheck==='notdone';
+
+      const rowBg = chkDone||wbDone ? 'background:var(--gl)' :
+                    chkNotDone||wbNotDone ? 'background:#fee2e2' :
+                    chkNoGrade||wbNoGrade ? 'background:#fefce8' : '';
+
       return `<tr style="${rowBg}">
         <td><div class="tdn">${s.n}${isIndiv?'<span class="tag t-개별반" style="margin-left:4px;font-size:10px">개별</span>':''}</div></td>
         <td><span class="tag t-${s.cls}">${s.cls}</span></td>
@@ -1530,21 +1547,31 @@ function renderScoreView() {
           <input class="pri" style="width:140px" placeholder="${bookPH}" value="${d.book||''}"
             oninput="SD[${s.no}].book=this.value" onblur="saveAll()"/>`}
         </td>
-        <td style="min-width:160px">
-          ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px;font-weight:600">📅 매일 자동</span>' : `
-          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">📝 기준: ${clsStd.wb||'미입력'}</div>
-          <input class="pri" style="width:140px" placeholder="${wbPH}" value="${d.wb||''}"
-            oninput="SD[${s.no}].wb=this.value" onblur="saveAll()"/>`}
-        </td>
-        <td style="min-width:120px">
-          <div style="display:flex;flex-direction:column;gap:5px">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--green)">
-              <input type="checkbox" ${chkDone?'checked':''} onchange="setCheck(${s.no},'done',this.checked)" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
-              ✅ 완료
+        <td style="min-width:110px">
+          ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px;font-weight:600">📅 자동</span>' : `
+          <div style="font-size:10px;color:var(--t3);margin-bottom:4px">📝 기준: ${clsStd.wb||'미입력'}</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--green)">
+              <input type="checkbox" ${wbDone?'checked':''} onchange="setWbCheck(${s.no},'done',this.checked)" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> ✅ 완료
             </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#a16207">
-              <input type="checkbox" ${chkNoGrade?'checked':''} onchange="setCheck(${s.no},'nograde',this.checked)" style="width:16px;height:16px;cursor:pointer"/>
-              📝 채점안됨
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:#a16207">
+              <input type="checkbox" ${wbNoGrade?'checked':''} onchange="setWbCheck(${s.no},'nograde',this.checked)" style="width:15px;height:15px;cursor:pointer"/> 📝 채점안됨
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--red)">
+              <input type="checkbox" ${wbNotDone?'checked':''} onchange="setWbCheck(${s.no},'notdone',this.checked)" style="width:15px;height:15px;cursor:pointer"/> ❌ 안풀었음
+            </label>
+          </div>`}
+        </td>
+        <td style="min-width:130px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--green)">
+              <input type="checkbox" ${chkDone?'checked':''} onchange="setCheck(${s.no},'done',this.checked)" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> ✅ 완료
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:#a16207">
+              <input type="checkbox" ${chkNoGrade?'checked':''} onchange="setCheck(${s.no},'nograde',this.checked)" style="width:15px;height:15px;cursor:pointer"/> 📝 채점안됨
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--red)">
+              <input type="checkbox" ${chkNotDone?'checked':''} onchange="setCheck(${s.no},'notdone',this.checked)" style="width:15px;height:15px;cursor:pointer"/> ❌ 안풀었음
             </label>
           </div>
         </td>
@@ -1554,7 +1581,7 @@ function renderScoreView() {
           : '<span style="color:var(--t3);font-size:11.5px">—</span>'}</td>
       </tr>`;
     }).join('');
-    }
+        }
 
   // ── 오답 뷰 ──
   if (curView === 'wrong') {
@@ -1700,20 +1727,33 @@ function saveQuickNote(){
 // 진도 체크 설정 (완료 / 채점안됨 — 둘 다 체크 불가)
 function setCheck(no, type, checked){
   const d = SD[no]; if(!d) return;
-  if(checked){
-    d.check = type; // 하나만 선택되게
-  } else {
-    if(d.check===type) d.check='';
-  }
+  d.check = checked ? type : (d.check===type ? '' : d.check);
+  syncCheckRow(no);
   saveAll();
-  // 다른 체크박스 동기화 (같은 행)
-  const row = document.querySelector(`tr:has(input[onchange*="setCheck(${no},"])`);
+}
+function setWbCheck(no, type, checked){
+  const d = SD[no]; if(!d) return;
+  d.wbCheck = checked ? type : (d.wbCheck===type ? '' : d.wbCheck);
+  syncCheckRow(no);
+  saveAll();
+}
+function syncCheckRow(no){
+  const d = SD[no]; if(!d) return;
+  // 행 배경색
+  const row = document.getElementById('scrow-hw-'+no) || [...document.querySelectorAll('#tbody-hw tr')].find(r=>r.innerHTML.includes('setCheck('+no+','));
   if(row){
-    const [cbDone, cbNoGrade] = row.querySelectorAll('input[type=checkbox]');
-    if(cbDone)    cbDone.checked    = d.check==='done';
-    if(cbNoGrade) cbNoGrade.checked = d.check==='nograde';
-    row.style.background = d.check==='done'?'var(--gl)':d.check==='nograde'?'#fefce8':'';
+    row.style.background = (d.check==='done'||d.wbCheck==='done') ? 'var(--gl)' :
+                           (d.check==='notdone'||d.wbCheck==='notdone') ? '#fee2e2' :
+                           (d.check==='nograde'||d.wbCheck==='nograde') ? '#fefce8' : '';
   }
+}
+function bulkCheck(type){
+  const list = S.filter(s=>s.st==='재원'&&s.st!=='퇴원'&&(FILT.sc==='all'||s.cls===FILT.sc));
+  list.forEach(s=>{ if(!SD[s.no]) return; SD[s.no].check=type; SD[s.no].wbCheck=type; });
+  saveAll();
+  renderScoreView();
+  if(type) showToast(`✅ ${list.length}명 일괄 "${type==='done'?'완료':type==='nograde'?'채점안됨':'안풀었음'}" 처리`);
+  else showToast('↺ 전체 초기화 완료');
 }
 
 function updScCls(el) {
