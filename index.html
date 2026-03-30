@@ -333,6 +333,7 @@ textarea.fi{resize:vertical}
       <input type="date" id="score-date" class="fi" style="width:138px;padding:5px 9px;font-size:12px" onchange="onDateChange(this.value)"/>
       <button class="btn bg bsm no-print" onclick="openExamSetup()">⚙️ 기준 설정</button>
       <button class="btn bg bsm no-print" onclick="openBulkScore()">📋 일괄 입력</button>
+      <button id="exam-period-btn" class="btn bsm no-print" style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;font-weight:700" onclick="toggleExamPeriod()">📋 시험기간 모드</button>
       <button class="btn bp bsm" onclick="genAllAI()">✨ AI 코멘트</button>
       <button class="btn" style="background:var(--green);color:#fff;font-size:12px;padding:6px 12px" onclick="saveAll();showToast('✅ 저장 완료!')">💾 저장</button>
     </div>
@@ -346,11 +347,21 @@ textarea.fi{resize:vertical}
       <span id="bn-wb" style="color:var(--t2)"></span>
       <button class="btn bg bxs no-print" style="margin-left:auto" onclick="openExamSetup()">수정</button>
     </div>
+    <!-- 시험기간 배너 -->
+    <div id="exam-period-banner" style="display:none;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:9px;padding:11px 16px;margin-bottom:13px;display:none;align-items:center;gap:12px">
+      <span style="font-size:18px">📋</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:800;color:#92400e">시험기간 모드 ON</div>
+        <div style="font-size:11.5px;color:#a16207;margin-top:2px">교재 진도 입력 숨김 · 오답 정리 + 태도 코멘트만 입력하면 문자 발송 가능해요</div>
+      </div>
+      <button class="btn bxs" style="background:#92400e;color:#fff;font-size:12px" onclick="toggleExamPeriod()">모드 끄기</button>
+    </div>
     <div class="pills" id="pills-sc"></div>
     <div class="tc">
       <div class="vtabs no-print">
         <button class="vt on" id="vt-score" onclick="setScoreView('score')">📊 점수</button>
         <button class="vt" id="vt-hw" onclick="setScoreView('hw')">📚 숙제·진도</button>
+        <button class="vt" id="vt-exam-hint" style="display:none;background:#fef3c7;color:#92400e;border-color:#fcd34d;cursor:default">📋 시험기간 — 진도 생략</button>
         <button class="vt" id="vt-wrong" onclick="setScoreView('wrong')">❌ 오답</button>
         <button class="vt" id="vt-att" onclick="setScoreView('att')">💬 태도·AI</button>
       </div>
@@ -366,7 +377,7 @@ textarea.fi{resize:vertical}
           ⚡ <b>개별반</b>은 본책/워크북 자동 진행 — 오답 + 태도 코멘트만 입력해도 바로 문자 발송 가능합니다
         </div>
         <div style="overflow-x:auto"><table><thead><tr>
-          <th>이름</th><th>반</th><th>📖 본책 진도</th><th>📝 워크북 진도</th><th>오답 메모</th><th>태도 상태</th>
+          <th>이름</th><th>반</th><th>📖 본책 진도</th><th>📝 워크북 진도</th><th style="min-width:120px">✅ 진도 확인</th><th>오답 메모</th><th>태도 상태</th>
         </tr></thead><tbody id="tbody-hw"></tbody></table></div>
       </div>
       <div id="sv-wrong" style="display:none"><div style="overflow-x:auto"><table><thead><tr>
@@ -635,7 +646,7 @@ textarea.fi{resize:vertical}
       <div class="fg"><label class="fl">월 원비 (원)</label><input class="fi" id="a-fee" type="number" placeholder="280000"/></div>
       <div class="fg"><label class="fl">수업 시작일</label><input class="fi" id="a-start" type="date"/></div>
     </div>
-    <div class="fg"><label class="fl">상태</label><select class="fi" id="a-status"><option value="재원">재원생</option><option value="예정">등록 예정</option></select></div>
+    <div class="fg"><label class="fl">상태</label><select class="fi" id="a-status"><option value="재원">재원생</option><option value="예정">등록 예정</option><option value="퇴원">퇴원</option></select></div>
     <div class="notice">✅ 등록 시 수업 시작일 기준 다음 달 1일로 수납 예정일이 자동 생성됩니다</div>
     <div class="m-footer">
       <button class="btn bg" onclick="closeModal('m-add')">취소</button>
@@ -1014,7 +1025,7 @@ function loadAll() {
 
 // SD/ATT/PAY 초기화 (기본값) — loadAllData에서 덮어씀
 let SD = {};
-S.forEach(s => { SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{}}; });
+S.forEach(s => { SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{},check:''}; });
 
 let ATT = {};
 S.forEach(s => { ATT[s.no] = {week:['','','','',''],mon:0}; });
@@ -1054,6 +1065,7 @@ let curView = 'score';
 let period = 'month';
 let payTab = 'all';
 let smsTgts = [];
+let EXAM_PERIOD = localStorage.getItem('fm_exam_period')==='1'; // 시험기간 모드
 let curRptNo = null;
 let nextNo = 62;
 let CHARTS = {};
@@ -1113,6 +1125,7 @@ document.getElementById('score-date').value = TODAY.toISOString().split('T')[0];
 localStorage.setItem('fm_last_date', TODAY.toISOString().split('T')[0]);
 document.getElementById('ba-start').value = TODAY.toISOString().split('T')[0];
 refreshAllSelects();
+applyExamPeriodUI();
 makePills('pills-stu','stu');
 renderStudents();
 updBadge();
@@ -1138,7 +1151,7 @@ function navTo(p) {
   // 페이지별 렌더 함수 호출
   const renders = {
     students: () => { makePills('pills-stu','stu'); renderStudents(); },
-    scores:   () => { makePills('pills-sc','sc'); renderScoreView(); },
+    scores:   () => { makePills('pills-sc','sc'); applyExamPeriodUI(); renderScoreView(); },
     attendance: () => { makePills('pills-att','att'); renderAtt(); },
     payments: () => { makePills('pills-pay','pay'); renderPay(); renderPayKpis(); },
     sms:      () => { loadSolapiUI(); renderSMSLog(); },
@@ -1181,7 +1194,7 @@ function setFilt(k, v, btn) {
 // ═══════════════════════════════════════════
 function filtered(key, sq) {
   const q = sq || '';
-  return S.filter(s => (FILT[key]==='all' || s.cls===FILT[key]) && (!q || s.n.includes(q)));
+  return S.filter(s => s.st!=='퇴원' && (FILT[key]==='all' || s.cls===FILT[key]) && (!q || s.n.includes(q)));
 }
 function renderStudents() {
   makePills('pills-stu','stu');
@@ -1190,7 +1203,7 @@ function renderStudents() {
     <tr class="${SEL.has(s.no)?'sel-row':''}" onclick="toggleSel(${s.no},event)">
       <td><input type="checkbox" class="cb" ${SEL.has(s.no)?'checked':''} onclick="toggleSel(${s.no},event)" /></td>
       <td>
-        <div class="tdn">${s.n}${s.st==='예정'?' <span class="tag t-예정">예정</span>':''}${s.n==='TEST학생'?' <span class="tag" style="background:#fef9c3;color:#713f12">TEST</span>':''}</div>
+        <div class="tdn">${s.n}${s.st==='예정'?' <span class="tag t-예정">예정</span>':''}${s.st==='퇴원'?' <span class="tag" style="background:#fee2e2;color:#991b1b">퇴원</span>':''}${s.n==='TEST학생'?' <span class="tag" style="background:#fef9c3;color:#713f12">TEST</span>':''}</div>
         <div class="tds">${s.g}${s.gr?' · '+s.gr:''}${s.sc?' · '+s.sc:''}</div>
       </td>
       <td><span class="tag t-${s.cls}">${s.cls}</span></td>
@@ -1199,9 +1212,29 @@ function renderStudents() {
       <td style="font-family:'DM Mono';font-size:11.5px;color:var(--t2)">${s.dad||'—'}</td>
       <td style="font-family:'DM Mono';font-size:12px">${s.fee?s.fee.toLocaleString()+'원':'<span style="color:var(--t3)">미설정</span>'}</td>
       <td style="font-size:11px;color:var(--t3)">${s.sd||'—'}</td>
-      <td><button class="btn bg bxs" onclick="event.stopPropagation();openRpt(${s.no})">레포트</button></td>
+      <td style="display:flex;gap:4px;align-items:center">
+        <button class="btn bg bxs" onclick="event.stopPropagation();openRpt(${s.no})">레포트</button>
+        ${s.st!=='퇴원'
+          ? `<button class="btn brd bxs" style="font-size:10.5px" onclick="event.stopPropagation();withdrawStu(${s.no})">퇴원</button>`
+          : `<button class="btn bg bxs" style="font-size:10.5px" onclick="event.stopPropagation();reinstStu(${s.no})">복귀</button>`}
+      </td>
     </tr>`).join('');
   updSelUI();
+}
+function withdrawStu(no){
+  const s=S.find(x=>x.no===no); if(!s) return;
+  if(!confirm(`"${s.n}" 학생을 퇴원 처리할까요?
+퇴원 후에도 기록은 보존됩니다.`)) return;
+  s.st='퇴원';
+  saveAll(); renderStudents(); updBadge();
+  showToast(`🎓 ${s.n} 퇴원 처리 완료`);
+}
+function reinstStu(no){
+  const s=S.find(x=>x.no===no); if(!s) return;
+  if(!confirm(`"${s.n}" 학생을 재원으로 복귀할까요?`)) return;
+  s.st='재원';
+  saveAll(); renderStudents(); updBadge();
+  showToast(`✅ ${s.n} 재원 복귀 완료`);
 }
 function toggleSel(no, e) {
   if (e && e.target.tagName === 'BUTTON') return;
@@ -1234,7 +1267,7 @@ function addStudent() {
     st:document.getElementById('a-status').value, sd:startStr.replace(/-/g,'.')
   };
   S.push(s);
-  SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{}};
+  SD[s.no] = {score:'',book:'',wb:'',att:'',att_ta:'',att_teacher:'',att_director:'',ai:'',logs:[],exams:{},wrong:{},check:''};
   PAY[s.no] = {status:'unpaid', date:'', due:dueStr};
   ATT[s.no] = {week:['','','','',''], mon:0};
   const b = 58+Math.random()*30;
@@ -1468,29 +1501,52 @@ function renderScoreView() {
     // 개별반 안내 배너
     const notice = document.getElementById('indiv-notice');
     if(notice) notice.style.display = (FILT.sc==='all'||FILT.sc==='개별반') ? '' : 'none';
-    // ── 학생별 진도 입력 테이블 (기준 표시 + 학생 개별 입력 분리) ──
+    // 요일 판단 (월화=문법, 목금=독해)
+    const todayDow = new Date(document.getElementById('score-date').value||Date.now()).getDay();
+    const bookType = (todayDow===1||todayDow===2) ? '📗 문법책' : (todayDow===4||todayDow===5) ? '📘 독해책' : null;
+
+    // ── 학생별 진도 입력 테이블 ──
     document.getElementById('tbody-hw').innerHTML = list.map(s => {
-      const d = SD[s.no];
+      const d = SD[s.no]; if(!d.check) d.check='';
       const clsStd = STD[s.cls]||{book:'',wb:''};
       const isIndiv = s.cls==='개별반';
       const wrongSummary = EXAMS.length&&d.wrong
-        ? Object.values(d.wrong).map(w=>w.words).filter(Boolean).join(', ')
-        : '';
+        ? Object.values(d.wrong).map(w=>w.words).filter(Boolean).join(', ') : '';
       const hasComment = d.att_ta||d.att_teacher||d.att_director||d.att;
-      return `<tr>
+      // 예상 진도: 직전 로그에서 가져오기
+      const lastLog = (d.logs||[]).filter(l=>l.book||l.wb).slice(-1)[0];
+      const bookPH = lastLog?.book ? `어제: ${lastLog.book}` : '학생 실제 진도…';
+      const wbPH   = lastLog?.wb   ? `어제: ${lastLog.wb}`   : '학생 실제 진도…';
+      // 체크 상태
+      const chkDone    = d.check==='done';
+      const chkNoGrade = d.check==='nograde';
+      const rowBg = chkDone ? 'background:var(--gl)' : chkNoGrade ? 'background:#fefce8' : '';
+      return `<tr style="${rowBg}">
         <td><div class="tdn">${s.n}${isIndiv?'<span class="tag t-개별반" style="margin-left:4px;font-size:10px">개별</span>':''}</div></td>
         <td><span class="tag t-${s.cls}">${s.cls}</span></td>
         <td style="min-width:160px">
           ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px;font-weight:600">📅 매일 자동</span>' : `
-          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">📖 기준: ${clsStd.book||'미입력'}</div>
-          <input class="pri" style="width:140px" placeholder="학생 실제 진도…" value="${d.book||''}"
+          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">📖 기준: ${clsStd.book||'미입력'}${bookType?` <b style="color:var(--accent)">(${bookType})</b>`:''}</div>
+          <input class="pri" style="width:140px" placeholder="${bookPH}" value="${d.book||''}"
             oninput="SD[${s.no}].book=this.value" onblur="saveAll()"/>`}
         </td>
         <td style="min-width:160px">
           ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px;font-weight:600">📅 매일 자동</span>' : `
           <div style="font-size:10px;color:var(--t3);margin-bottom:3px">📝 기준: ${clsStd.wb||'미입력'}</div>
-          <input class="pri" style="width:140px" placeholder="학생 실제 진도…" value="${d.wb||''}"
+          <input class="pri" style="width:140px" placeholder="${wbPH}" value="${d.wb||''}"
             oninput="SD[${s.no}].wb=this.value" onblur="saveAll()"/>`}
+        </td>
+        <td style="min-width:120px">
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--green)">
+              <input type="checkbox" ${chkDone?'checked':''} onchange="setCheck(${s.no},'done',this.checked)" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
+              ✅ 완료
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#a16207">
+              <input type="checkbox" ${chkNoGrade?'checked':''} onchange="setCheck(${s.no},'nograde',this.checked)" style="width:16px;height:16px;cursor:pointer"/>
+              📝 채점안됨
+            </label>
+          </div>
         </td>
         <td style="font-size:11.5px;color:${wrongSummary?'var(--red)':'var(--t3)'}">${wrongSummary||'—'}</td>
         <td>${hasComment
@@ -1498,7 +1554,7 @@ function renderScoreView() {
           : '<span style="color:var(--t3);font-size:11.5px">—</span>'}</td>
       </tr>`;
     }).join('');
-  }
+    }
 
   // ── 오답 뷰 ──
   if (curView === 'wrong') {
@@ -1555,6 +1611,32 @@ function renderScoreView() {
 }
 // 점수 입력 시 인라인 피드백 (등급, 전주대비)
 // 날짜 변경 시 — 당일 입력값 초기화 (이전 날짜 기록은 logs에 보존)
+function toggleExamPeriod(){
+  EXAM_PERIOD = !EXAM_PERIOD;
+  localStorage.setItem('fm_exam_period', EXAM_PERIOD?'1':'0');
+  applyExamPeriodUI();
+  showToast(EXAM_PERIOD ? '📋 시험기간 모드 ON — 진도 입력 생략' : '✅ 시험기간 모드 OFF');
+  renderScoreView();
+}
+function applyExamPeriodUI(){
+  const banner = document.getElementById('exam-period-banner');
+  const btn    = document.getElementById('exam-period-btn');
+  const hwTab  = document.getElementById('vt-hw');
+  const hint   = document.getElementById('vt-exam-hint');
+  if(banner){
+    banner.style.display = EXAM_PERIOD ? 'flex' : 'none';
+  }
+  if(btn){
+    btn.style.background = EXAM_PERIOD ? '#92400e' : '#fef3c7';
+    btn.style.color      = EXAM_PERIOD ? '#fff'    : '#92400e';
+    btn.textContent      = EXAM_PERIOD ? '📋 시험기간 ON ✓' : '📋 시험기간 모드';
+  }
+  if(hwTab)  hwTab.style.display  = EXAM_PERIOD ? 'none' : '';
+  if(hint)   hint.style.display   = EXAM_PERIOD ? ''     : 'none';
+  // 시험기간이면 점수/오답/태도 탭으로 이동
+  if(EXAM_PERIOD && curView==='hw') setScoreView('wrong');
+}
+
 function onDateChange(newDate){
   const prev = localStorage.getItem('fm_last_date');
   if(prev && prev !== newDate){
@@ -1615,6 +1697,25 @@ function saveQuickNote(){
   if(curView==='att') renderScoreView();
 }
 
+// 진도 체크 설정 (완료 / 채점안됨 — 둘 다 체크 불가)
+function setCheck(no, type, checked){
+  const d = SD[no]; if(!d) return;
+  if(checked){
+    d.check = type; // 하나만 선택되게
+  } else {
+    if(d.check===type) d.check='';
+  }
+  saveAll();
+  // 다른 체크박스 동기화 (같은 행)
+  const row = document.querySelector(`tr:has(input[onchange*="setCheck(${no},"])`);
+  if(row){
+    const [cbDone, cbNoGrade] = row.querySelectorAll('input[type=checkbox]');
+    if(cbDone)    cbDone.checked    = d.check==='done';
+    if(cbNoGrade) cbNoGrade.checked = d.check==='nograde';
+    row.style.background = d.check==='done'?'var(--gl)':d.check==='nograde'?'#fefce8':'';
+  }
+}
+
 function updScCls(el) {
   const v=parseFloat(el.value);
   el.className='sci '+(el.value ? v>=90?'sh':v>=70?'sm':'sl' : '');
@@ -1657,7 +1758,25 @@ function buildAIFallback(s, d) {
 async function buildAIWithClaude(s, d, customPrompt=null) {
   const ctx = buildContext(s, d);
   if(!ctx.att.length && !ctx.score.length) return buildAIFallback(s, d);
-  const prompt = customPrompt || `당신은 영어학원 원장입니다. 학부모에게 보낼 주간 학습 안내 문자를 작성해주세요.
+  // 시험기간이면 시험 대비 문자로 변경
+  const examPeriodMode = typeof EXAM_PERIOD!=='undefined' && EXAM_PERIOD;
+  let prompt;
+  if(customPrompt){
+    prompt = customPrompt;
+  } else if(examPeriodMode){
+    prompt = `당신은 영어학원 원장입니다. 시험기간 중 학부모에게 보낼 격려 문자를 작성해주세요.
+
+[학생: ${ctx.name} (${ctx.cls})]
+${ctx.att.length ? '선생님 코멘트:\n'+ctx.att.join('\n') : ''}
+
+[규칙]
+- 시험 잘 보라는 격려 + 학원에서 함께 준비하고 있다는 내용
+- 선생님 코멘트 자연스럽게 반영
+- 200자 이내, 한국어
+- [에프엠영어] 로 시작, 감사합니다 🙏 로 끝
+- 이름 뒤 "학생" 붙이기`;
+  } else {
+    prompt = `당신은 영어학원 원장입니다. 학부모에게 보낼 주간 학습 안내 문자를 작성해주세요.
 
 [학생 정보]
 이름: ${ctx.name} (${ctx.cls})
@@ -1672,7 +1791,8 @@ ${ctx.att.length ? '\n선생님 코멘트:\n'+ctx.att.join('\n') : ''}
 - 200자 이내, 한국어
 - [에프엠영어] 로 시작, 감사합니다 🙏 로 끝
 - 이름 뒤 "학생" 붙이기`;
-  try {
+  }
+    try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1825,9 +1945,13 @@ function renderPay() {
 function markPaid(no){PAY[no].status='paid';PAY[no].date=TODAY.toLocaleDateString('ko-KR');renderPay();renderPayKpis();saveAll();}
 function markUnpaid(no){PAY[no].status='unpaid';renderPay();renderPayKpis();saveAll();}
 function updBadge(){
-  const n=S.filter(s=>s.st!=='예정'&&PAY[s.no]?.status!=='paid').length;
+  const n=S.filter(s=>s.st!=='예정'&&s.st!=='퇴원'&&PAY[s.no]?.status!=='paid').length;
   const b=document.getElementById('badge-unpaid');
   if(b){b.textContent=n;b.style.display=n>0?'':'none';}
+  // 재원생 수 업데이트
+  const total = S.filter(s=>s.st==='재원').length;
+  const br1=document.getElementById('br1-cnt'); if(br1) br1.textContent=total+'명 재원';
+  const brTotal=document.getElementById('br-total'); if(brTotal) brTotal.textContent=total;
 }
 
 // ═══════════════════════════════════════════
