@@ -335,7 +335,7 @@ textarea.fi{resize:vertical}
       <button class="btn bg bsm no-print" onclick="openBulkScore()">📋 일괄 입력</button>
       <button id="exam-period-btn" class="btn bsm no-print" style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;font-weight:700" onclick="toggleExamPeriod()">📋 시험기간 모드</button>
       <button class="btn bp bsm" onclick="genAllAI()">✨ AI 코멘트</button>
-      <button class="btn" style="background:var(--green);color:#fff;font-size:12px;padding:6px 12px" onclick="saveAll();showToast('✅ 저장 완료!')">💾 저장</button>
+      <button class="btn" style="background:var(--green);color:#fff;font-size:12px;padding:6px 12px" onclick="saveDailySnapshot();showToast('✅ 저장 완료!')">💾 저장</button>
     </div>
   </div>
   <div class="page-body">
@@ -385,7 +385,7 @@ textarea.fi{resize:vertical}
           <button class="btn bg bsm" onclick="bulkCheck('')">↺ 전체 초기화</button>
         </div>
         <div style="overflow-x:auto"><table><thead><tr>
-          <th>이름</th><th>반</th><th>📖 본책 진도</th><th>📝 워크북 체크</th><th style="min-width:130px">📋 진도 확인</th><th>오답 메모</th><th>태도 상태</th>
+          <th>이름</th><th>반</th><th>📝 워크북 체크</th><th style="min-width:130px">📋 진도 확인</th><th>오답 메모</th><th>태도 상태</th>
         </tr></thead><tbody id="tbody-hw"></tbody></table></div>
       </div>
       <div id="sv-wrong" style="display:none"><div style="overflow-x:auto"><table><thead><tr>
@@ -1521,35 +1521,22 @@ function renderScoreView() {
       const wrongSummary = EXAMS.length&&d.wrong
         ? Object.values(d.wrong).map(w=>w.words).filter(Boolean).join(', ') : '';
       const hasComment = d.att_ta||d.att_teacher||d.att_director||d.att;
-      const lastLog = (d.logs||[]).filter(l=>l.book).slice(-1)[0];
-      const bookPH = lastLog?.book ? `어제: ${lastLog.book}` : '학생 실제 진도…';
-
-      // 진도 체크 (본책)
-      const chkDone    = d.check==='done';
-      const chkNoGrade = d.check==='nograde';
-      const chkNotDone = d.check==='notdone';
-
       // 워크북 체크
-      const wbDone    = d.wbCheck==='done';
-      const wbNoGrade = d.wbCheck==='nograde';
-      const wbNotDone = d.wbCheck==='notdone';
-
-      const rowBg = chkDone||wbDone ? 'background:var(--gl)' :
-                    chkNotDone||wbNotDone ? 'background:#fee2e2' :
-                    chkNoGrade||wbNoGrade ? 'background:#fefce8' : '';
-
+      const wbDone=d.wbCheck==='done', wbNoGrade=d.wbCheck==='nograde', wbNotDone=d.wbCheck==='notdone';
+      // 진도 확인 체크
+      const chkDone=d.check==='done', chkNoGrade=d.check==='nograde', chkNotDone=d.check==='notdone';
+      const rowBg = (chkDone||wbDone)?'background:var(--gl)':(chkNotDone||wbNotDone)?'background:#fee2e2':(chkNoGrade||wbNoGrade)?'background:#fefce8':'';
+      // 기준 진도 (반 공통 — 학생별 입력칸 없음)
+      const progLabel = isIndiv ? '📅 매일 자동' : clsStd.book ? clsStd.book+(bookType?` <span style="color:var(--accent);font-size:10px">(${bookType})</span>`:'') : '<span style="color:var(--t3)">미입력</span>';
       return `<tr style="${rowBg}">
-        <td><div class="tdn">${s.n}${isIndiv?'<span class="tag t-개별반" style="margin-left:4px;font-size:10px">개별</span>':''}</div></td>
-        <td><span class="tag t-${s.cls}">${s.cls}</span></td>
-        <td style="min-width:160px">
-          ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px;font-weight:600">📅 매일 자동</span>' : `
-          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">📖 기준: ${clsStd.book||'미입력'}${bookType?` <b style="color:var(--accent)">(${bookType})</b>`:''}</div>
-          <input class="pri" style="width:140px" placeholder="${bookPH}" value="${d.book||''}"
-            oninput="SD[${s.no}].book=this.value" onblur="saveAll()"/>`}
+        <td>
+          <div class="tdn">${s.n}${isIndiv?'<span class="tag t-개별반" style="margin-left:4px;font-size:10px">개별</span>':''}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">📖 ${progLabel}</div>
         </td>
+        <td><span class="tag t-${s.cls}">${s.cls}</span></td>
         <td style="min-width:110px">
-          ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px;font-weight:600">📅 자동</span>' : `
-          <div style="font-size:10px;color:var(--t3);margin-bottom:4px">📝 기준: ${clsStd.wb||'미입력'}</div>
+          ${isIndiv ? '<span style="color:var(--teal);font-size:11.5px">자동</span>' : `
+          <div style="font-size:10px;color:var(--t3);margin-bottom:4px">기준: ${clsStd.wb||'미입력'}</div>
           <div style="display:flex;flex-direction:column;gap:4px">
             <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--green)">
               <input type="checkbox" ${wbDone?'checked':''} onchange="setWbCheck(${s.no},'done',this.checked)" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> ✅ 완료
@@ -1576,9 +1563,7 @@ function renderScoreView() {
           </div>
         </td>
         <td style="font-size:11.5px;color:${wrongSummary?'var(--red)':'var(--t3)'}">${wrongSummary||'—'}</td>
-        <td>${hasComment
-          ? '<span class="hw-ok">✅ 입력됨</span>'
-          : '<span style="color:var(--t3);font-size:11.5px">—</span>'}</td>
+        <td>${hasComment?'<span class="hw-ok">✅ 입력됨</span>':'<span style="color:var(--t3);font-size:11.5px">—</span>'}</td>
       </tr>`;
     }).join('');
         }
@@ -1608,27 +1593,50 @@ function renderScoreView() {
 
   // ── 태도 뷰 ──
   if (curView === 'att') {
+    const ATT_QUICK = ['집중력 좋음','성실함','잡담 조금 있음','잡담 많음','숙제 안해옴','수업 태도 불량','졸음 있음','발표 적극적','질문 많음','이해도 높음'];
     document.getElementById('tbody-att-s').innerHTML = list.map(s => {
       const d=SD[s.no];
-      // AI 생성용 종합 태도: 세 칸 중 입력된 것 합쳐서 사용
-      const combinedAtt = [d.att_ta, d.att_teacher, d.att_director].filter(Boolean).join(' / ');
+      const saveAtt = (no)=>{
+        const ta=document.getElementById('att-ta-'+no)?.value||'';
+        const te=document.getElementById('att-te-'+no)?.value||'';
+        const di=document.getElementById('att-di-'+no)?.value||'';
+        SD[no].att_ta=ta; SD[no].att_teacher=te; SD[no].att_director=di;
+        SD[no].att=[ta,te,di].filter(Boolean).join(' / ');
+        saveAll();
+      };
+      const addQuick=(no,field,word)=>{
+        const el=document.getElementById('att-'+field+'-'+no); if(!el) return;
+        el.value=el.value?(el.value+', '+word):word;
+        const ta=document.getElementById('att-ta-'+no)?.value||'';
+        const te=document.getElementById('att-te-'+no)?.value||'';
+        const di=document.getElementById('att-di-'+no)?.value||'';
+        SD[no].att_ta=ta; SD[no].att_teacher=te; SD[no].att_director=di;
+        SD[no].att=[ta,te,di].filter(Boolean).join(' / ');
+        saveAll();
+      };
+      const quickBtns = (no,field) => ATT_QUICK.map(w=>
+        `<button class="btn bg bxs" style="font-size:10px;padding:2px 6px;margin:2px 1px" onclick="(${addQuick.toString()})(${no},'${field}','${w}')">${w}</button>`
+      ).join('');
       return `<tr>
         <td><div class="tdn">${s.n}</div><div class="tds">${s.gr||''}</div></td>
         <td><span class="tag t-${s.cls}">${s.cls}</span></td>
-        <td>
-          <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:3px">🙋 조교</div>
-          <input class="pri" style="width:150px" value="${d.att_ta||''}" placeholder="조교 메모…"
-            onchange="SD[${s.no}].att_ta=this.value;SD[${s.no}].att=[SD[${s.no}].att_ta,SD[${s.no}].att_teacher,SD[${s.no}].att_director].filter(Boolean).join(' / ')"/>
+        <td style="min-width:220px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:4px">🙋 조교</div>
+          <div style="margin-bottom:4px;line-height:1.8">${quickBtns(s.no,'ta')}</div>
+          <input class="pri" id="att-ta-${s.no}" style="width:200px" value="${d.att_ta||''}" placeholder="직접 입력…"
+            onchange="(${saveAtt.toString()})(${s.no})"/>
         </td>
-        <td>
-          <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:3px">👩‍🏫 강사</div>
-          <input class="pri" style="width:150px" value="${d.att_teacher||''}" placeholder="강사 메모…"
-            onchange="SD[${s.no}].att_teacher=this.value;SD[${s.no}].att=[SD[${s.no}].att_ta,SD[${s.no}].att_teacher,SD[${s.no}].att_director].filter(Boolean).join(' / ')"/>
+        <td style="min-width:220px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:4px">👩‍🏫 강사</div>
+          <div style="margin-bottom:4px;line-height:1.8">${quickBtns(s.no,'te')}</div>
+          <input class="pri" id="att-te-${s.no}" style="width:200px" value="${d.att_teacher||''}" placeholder="직접 입력…"
+            onchange="(${saveAtt.toString()})(${s.no})"/>
         </td>
-        <td>
-          <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:3px">👑 원장</div>
-          <input class="pri" style="width:150px" value="${d.att_director||''}" placeholder="원장 메모…"
-            onchange="SD[${s.no}].att_director=this.value;SD[${s.no}].att=[SD[${s.no}].att_ta,SD[${s.no}].att_teacher,SD[${s.no}].att_director].filter(Boolean).join(' / ')"/>
+        <td style="min-width:220px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:4px">👑 원장</div>
+          <div style="margin-bottom:4px;line-height:1.8">${quickBtns(s.no,'di')}</div>
+          <input class="pri" id="att-di-${s.no}" style="width:200px" value="${d.att_director||''}" placeholder="직접 입력…"
+            onchange="(${saveAtt.toString()})(${s.no})"/>
         </td>
         <td style="font-size:12px;color:${d.ai?'var(--green)':'var(--t3)'}">${d.ai?'✓ AI 완료':'미생성'}</td>
         <td><button class="btn bg bxs" onclick="genAI1(${s.no})">${d.ai?'재생성':'✨ 생성'}</button></td>
@@ -1664,19 +1672,51 @@ function applyExamPeriodUI(){
   if(EXAM_PERIOD && curView==='hw') setScoreView('wrong');
 }
 
+function saveDailySnapshot(){
+  const dt = document.getElementById('score-date').value || TODAY.toISOString().split('T')[0];
+  S.filter(s=>s.st==='재원').forEach(s => {
+    const d = SD[s.no];
+    const hasAny = d.score||Object.values(d.exams||{}).some(Boolean)||
+                   d.book||d.check||d.wbCheck||
+                   d.att_ta||d.att_teacher||d.att_director;
+    if(!hasAny) return;
+    // 같은 날짜 기록이 이미 있으면 덮어쓰기
+    const idx = d.logs.findIndex(l=>l.date===dt);
+    const snap = {
+      date: dt,
+      score: d.score, exams: {...(d.exams||{})},
+      book: d.book, check: d.check, wbCheck: d.wbCheck,
+      att: d.att, att_ta: d.att_ta, att_teacher: d.att_teacher, att_director: d.att_director,
+      ai: d.ai
+    };
+    if(idx>=0) d.logs[idx] = snap;
+    else d.logs.push(snap);
+  });
+  saveAll();
+}
+
 function onDateChange(newDate){
   const prev = localStorage.getItem('fm_last_date');
   if(prev && prev !== newDate){
     if(!confirm(`날짜가 ${newDate}로 변경됐어요.\n오늘 입력한 점수·태도·진도를 초기화할까요?\n(이전 기록은 로그에 보존됩니다)`)) return;
     S.forEach(s => {
       const d = SD[s.no];
-      // 기존 입력값 로그에 저장
-      if(d.score||Object.values(d.exams||{}).some(Boolean)||d.att_ta||d.att_teacher||d.att_director){
-        d.logs.push({date:prev, score:d.score, exams:{...d.exams}, att:d.att, att_ta:d.att_ta, att_teacher:d.att_teacher, att_director:d.att_director, ai:d.ai});
+      // 뭐라도 입력했으면 로그에 저장
+      const hasAny = d.score||Object.values(d.exams||{}).some(Boolean)||
+                     d.att_ta||d.att_teacher||d.att_director||
+                     d.book||d.check||d.wbCheck;
+      if(hasAny){
+        d.logs.push({
+          date: prev,
+          score: d.score, exams: {...d.exams},
+          book: d.book, check: d.check, wbCheck: d.wbCheck,
+          att: d.att, att_ta: d.att_ta, att_teacher: d.att_teacher, att_director: d.att_director,
+          ai: d.ai
+        });
       }
-      // 당일 입력값 초기화
-      d.score=''; d.exams={}; d.att=''; d.att_ta=''; d.att_teacher=''; d.att_director=''; d.ai='';
-      d.book=''; d.wb='';
+      // 당일 입력값 초기화 (태도 코멘트는 유지 — 매일 바뀌지 않으니까)
+      d.score=''; d.exams={};
+      d.book=''; d.check=''; d.wbCheck='';
     });
     // 기준 진도도 초기화
     CLS.forEach(c => { if(STD[c]) STD[c]={book:'',wb:''}; });
@@ -2599,8 +2639,26 @@ function openRpt(no){
     <div style="font-size:11px;color:var(--t3);margin-top:5px">${dm.att>=90?'✅ 매우 우수':dm.att>=75?'🔔 양호':'⚠️ 관리 필요'}</div>
   </div>`;
   const logs=sd.logs.length?sd.logs:[...dm.w.slice(-4)].map((w,i)=>({date:`3/${(i+1)*7}`,score:w.v,att:'—',ai:''}));
-  document.getElementById('rpt-hist').innerHTML=`<thead><tr style="font-size:10.5px;color:var(--t3)"><th style="padding:6px 10px;border-bottom:1px solid var(--border)">날짜</th><th style="padding:6px 10px;border-bottom:1px solid var(--border)">점수</th><th style="padding:6px 10px;border-bottom:1px solid var(--border)">태도</th></tr></thead><tbody>`+
-    [...logs].reverse().slice(0,8).map(l=>`<tr><td style="padding:6px 10px;border-bottom:1px solid var(--border);font-family:'DM Mono';font-size:10.5px;color:var(--t3)">${l.date}</td><td style="padding:6px 10px;border-bottom:1px solid var(--border)"><span style="font-family:'DM Mono';font-weight:700" class="${parseFloat(l.score)>=90?'sh':parseFloat(l.score)>=70?'sm':'sl'}">${l.score?l.score+'점':'—'}</span></td><td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--t2)">${l.att||'—'}</td></tr>`).join('')+'</tbody>';
+  const chkIcon = v => v==='done'?'✅':v==='nograde'?'📝':v==='notdone'?'❌':'—';
+  document.getElementById('rpt-hist').innerHTML=
+    `<thead><tr style="font-size:10.5px;color:var(--t3);background:var(--bg)">
+      <th style="padding:6px 10px;border-bottom:1px solid var(--border)">날짜</th>
+      <th style="padding:6px 10px;border-bottom:1px solid var(--border)">점수</th>
+      <th style="padding:6px 10px;border-bottom:1px solid var(--border)">📖 본책 진도</th>
+      <th style="padding:6px 10px;border-bottom:1px solid var(--border)">📝 워크북</th>
+      <th style="padding:6px 10px;border-bottom:1px solid var(--border)">진도확인</th>
+      <th style="padding:6px 10px;border-bottom:1px solid var(--border)">태도</th>
+    </tr></thead><tbody>`+
+    [...logs].reverse().slice(0,30).map(l=>`<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-family:'DM Mono';font-size:10.5px;color:var(--t3);white-space:nowrap">${l.date}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border)">
+        <span style="font-family:'DM Mono';font-weight:700" class="${parseFloat(l.score)>=90?'sh':parseFloat(l.score)>=70?'sm':'sl'}">${l.score?l.score+'점':'—'}</span>
+      </td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:11.5px;color:var(--t2)">${l.book||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:center;font-size:14px">${chkIcon(l.wbCheck)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:center;font-size:14px">${chkIcon(l.check)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:11.5px;color:var(--t2);max-width:180px">${l.att||'—'}</td>
+    </tr>`).join('')+'</tbody>';
   const trend=dm.w.slice(-3).every((w,i,a)=>i===0||w.v>=a[i-1].v)?'상승세':dm.w.slice(-3).every((w,i,a)=>i===0||w.v<=a[i-1].v)?'하락세':'유지 중';
   // 레포트 AI 피드백 — Claude API 비동기 생성
   const fbEl = document.getElementById('rpt-fb');
