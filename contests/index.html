@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>공모전 모아보기</title>
+<meta name="description" content="일반인·대학생·초중고생 공모전을 마감일과 상금 순으로 정리했습니다. 매일 업데이트됩니다.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#f6f5f2;--surface:#ffffff;--line:#e7e4dd;--text:#1d1b18;--t2:#5d5850;--t3:#9a948a;
+  --accent:#b4232f;--accent-soft:#fbe9ea;--chip:#efece6;
+  --urgent:#c2410c;--urgent-soft:#fff1e6;--ok:#15803d;--ok-soft:#e8f6ec;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#151413;--surface:#1f1d1b;--line:#33302c;--text:#f1eee9;--t2:#bdb6ab;--t3:#857e74;
+    --accent:#f0646f;--accent-soft:#3a1d20;--chip:#2a2724;
+    --urgent:#fb923c;--urgent-soft:#3a2416;--ok:#4ade80;--ok-soft:#173022;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151413;--surface:#1f1d1b;--line:#33302c;--text:#f1eee9;--t2:#bdb6ab;--t3:#857e74;
+  --accent:#f0646f;--accent-soft:#3a1d20;--chip:#2a2724;
+  --urgent:#fb923c;--urgent-soft:#3a2416;--ok:#4ade80;--ok-soft:#173022;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Pretendard,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+header h1{font-size:26px;font-weight:800;letter-spacing:-.5px}
+header p{color:var(--t2);font-size:14px;margin-top:4px}
+.updated{display:inline-block;margin-top:10px;font-size:12px;color:var(--t3)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:20px 0 12px;background:var(--chip);padding:4px;border-radius:12px}
+.tab{border:0;background:transparent;color:var(--t2);font:inherit;font-size:14px;font-weight:600;padding:10px 0;border-radius:9px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tab .n{font-size:11px;color:var(--t3);margin-left:3px;font-weight:500}
+.controls{display:flex;gap:8px;margin-bottom:10px}
+.controls input{flex:1;min-width:0;font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text)}
+.controls select{font:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--t2);font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.list{display:flex;flex-direction:column;gap:10px}
+.card{display:block;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.card:hover{border-color:var(--t3)}
+.row1{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.dday{font-size:12px;font-weight:800;padding:2px 8px;border-radius:6px;background:var(--ok-soft);color:var(--ok)}
+.dday.soon{background:var(--urgent-soft);color:var(--urgent)}
+.dday.unk{background:var(--chip);color:var(--t2)}
+.field{font-size:12px;color:var(--t2)}
+.tg{font-size:11px;padding:1px 7px;border-radius:5px;background:var(--chip);color:var(--t2)}
+.card h2{font-size:16px;font-weight:700;letter-spacing:-.2px}
+.host{font-size:13px;color:var(--t3);margin-top:2px}
+.prize{margin-top:8px;font-size:14px;font-weight:700;color:var(--accent)}
+.prize.none{color:var(--t3);font-weight:500}
+.meta{margin-top:6px;font-size:12px;color:var(--t2)}
+.note{margin-top:6px;font-size:12px;color:var(--t2);background:var(--chip);padding:6px 9px;border-radius:8px}
+.empty{text-align:center;color:var(--t3);padding:40px 0;font-size:14px}
+h3.sec{font-size:15px;font-weight:800;margin:32px 0 10px}
+.up{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.up a{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;text-decoration:none;color:inherit;border-top:1px solid var(--line)}
+.up a:first-child{border-top:0}
+.up b{font-size:14px;font-weight:600}
+.up span{font-size:12px;color:var(--t2);text-align:right;flex:none}
+footer{margin-top:32px;font-size:12px;color:var(--t3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>공모전 모아보기</h1>
+    <p>접수 중인 공모전을 대상별로 정리했어요. 마감 지난 공모전은 자동으로 사라집니다.</p>
+    <span class="updated" id="updated"></span>
+  </header>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <div class="controls">
+    <input id="q" type="search" placeholder="공모전 이름·주최 검색" aria-label="검색">
+    <select id="sort" aria-label="정렬">
+      <option value="end">마감 임박순</option>
+      <option value="prize">상금 높은순</option>
+    </select>
+  </div>
+  <div class="chips" id="chips"></div>
+
+  <div class="list" id="list"></div>
+
+  <h3 class="sec">곧 열리는 공모 (매년 반복)</h3>
+  <div class="up" id="upcoming"></div>
+
+  <footer>정보는 각 공모전 공고를 요약한 것입니다. 응모 전에 주최 측 공고에서 자격·마감·제출 방식을 꼭 확인하세요.</footer>
+</div>
+
+<script>
+const TARGETS = ["전체", "일반인", "대학생", "초중고"];
+let DATA = { items: [], upcoming: [] };
+let state = { target: "전체", field: "전체", q: "", sort: "end" };
+
+try {
+  const saved = JSON.parse(localStorage.getItem("contest-filter") || "{}");
+  if (TARGETS.includes(saved.target)) state.target = saved.target;
+  if (saved.sort === "prize") state.sort = "prize";
+} catch (e) {}
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function today() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function parseDate(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function dday(end) {
+  const e = parseDate(end);
+  if (!e) return null;
+  return Math.round((e - today()) / 86400000);
+}
+function fmt(s) {
+  const d = parseDate(s);
+  return d ? `${d.getMonth() + 1}/${d.getDate()}` : "";
+}
+
+function active() {
+  // 마감 지난 것만 숨김 (접수 시작 전인 것은 "접수 시작" 표시로 보여줌)
+  return DATA.items.filter((it) => {
+    const dd = dday(it.end);
+    return dd === null || dd >= 0;
+  });
+}
+
+function renderTabs() {
+  const items = active();
+  $("tabs").innerHTML = TARGETS.map((t) => {
+    const n = t === "전체" ? items.length : items.filter((i) => i.targets.includes(t)).length;
+    return `<button class="tab" role="tab" aria-selected="${t === state.target}" data-t="${t}">${t}<span class="n">${n}</span></button>`;
+  }).join("");
+}
+
+function renderChips() {
+  const fields = ["전체", ...new Set(active().map((i) => i.field))];
+  if (!fields.includes(state.field)) state.field = "전체";
+  $("chips").innerHTML = fields.map((f) => `<button class="chip" aria-pressed="${f === state.field}" data-f="${esc(f)}">${esc(f)}</button>`).join("");
+}
+
+function renderList() {
+  const q = state.q.trim().toLowerCase();
+  let items = active().filter((i) =>
+    (state.target === "전체" || i.targets.includes(state.target)) &&
+    (state.field === "전체" || i.field === state.field) &&
+    (!q || (i.title + " " + i.host + " " + (i.note || "")).toLowerCase().includes(q))
+  );
+  items.sort((a, b) => {
+    if (state.sort === "prize" && b.prizeTotal !== a.prizeTotal) return b.prizeTotal - a.prizeTotal;
+    const da = dday(a.end), db = dday(b.end);
+    return (da ?? 9999) - (db ?? 9999);
+  });
+  if (!items.length) {
+    $("list").innerHTML = `<div class="empty">조건에 맞는 공모전이 없어요.</div>`;
+    return;
+  }
+  $("list").innerHTML = items.map((i) => {
+    const dd = dday(i.end);
+    const s = parseDate(i.start);
+    const notYet = s && s > today();
+    let badge;
+    if (dd === null) badge = `<span class="dday unk">마감 확인</span>`;
+    else if (notYet) badge = `<span class="dday unk">${fmt(i.start)} 접수 시작</span>`;
+    else badge = `<span class="dday ${dd <= 7 ? "soon" : ""}">${dd === 0 ? "오늘 마감" : "D-" + dd}</span>`;
+    const period = i.start ? `${fmt(i.start)} ~ ${fmt(i.end)}` : i.end ? `~ ${fmt(i.end)}` : "";
+    const hasPrize = i.prize && !i.prize.includes("확인");
+    return `<a class="card" href="${esc(i.url)}" target="_blank" rel="noopener">
+      <div class="row1">${badge}<span class="field">${esc(i.field)}</span>${i.targets.map((t) => `<span class="tg">${esc(t)}</span>`).join("")}</div>
+      <h2>${esc(i.title)}</h2>
+      <div class="host">${esc(i.host)}</div>
+      <div class="prize ${hasPrize ? "" : "none"}">${hasPrize ? "🏆 " + esc(i.prize) : "상금: 공고 확인"}</div>
+      ${period ? `<div class="meta">접수 ${esc(period)}</div>` : ""}
+      ${i.note ? `<div class="note">${esc(i.note)}</div>` : ""}
+    </a>`;
+  }).join("");
+}
+
+function renderUpcoming() {
+  $("upcoming").innerHTML = (DATA.upcoming || []).map((u) =>
+    `<a href="${esc(u.url)}" target="_blank" rel="noopener"><b>${esc(u.title)}</b><span>${esc(u.when)}<br>${esc(u.prize)}</span></a>`
+  ).join("");
+}
+
+function renderAll() {
+  renderTabs(); renderChips(); renderList();
+  try { localStorage.setItem("contest-filter", JSON.stringify({ target: state.target, sort: state.sort })); } catch (e) {}
+}
+
+$("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest(".tab"); if (!b) return;
+  state.target = b.dataset.t; state.field = "전체"; renderAll();
+});
+$("chips").addEventListener("click", (e) => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  state.field = b.dataset.f; renderChips(); renderList();
+});
+$("q").addEventListener("input", (e) => { state.q = e.target.value; renderList(); });
+$("sort").addEventListener("change", (e) => { state.sort = e.target.value; renderAll(); });
+
+fetch("contests.json?v=" + Date.now())
+  .then((r) => r.json())
+  .then((d) => {
+    DATA = d;
+    $("updated").textContent = `마지막 업데이트 ${d.updated}`;
+    $("sort").value = state.sort;
+    renderAll(); renderUpcoming();
+  })
+  .catch(() => { $("list").innerHTML = `<div class="empty">공모전 목록을 불러오지 못했어요. 잠시 후 다시 열어 주세요.</div>`; });
+</script>
+</body>
+</html>
